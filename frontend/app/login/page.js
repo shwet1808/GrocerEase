@@ -16,8 +16,9 @@ export default function LoginPage() {
     setErrorMsg('');
 
     try {
-      // 1. We talk to the backend Route we built in Step 3!
-      const response = await fetch('http://localhost:5000/api/auth/login', {
+      // 1. We talk to the      // Connect to our real Node.js database
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+      const response = await fetch(`${API_URL}/api/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

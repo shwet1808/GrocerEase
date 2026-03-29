@@ -16,7 +16,8 @@ export default function AdminProducts() {
   // Fetch all products on load
   const fetchProducts = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/products');
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+      const res = await fetch(`${API_URL}/api/products`);
       if (!res.ok) throw new Error("Failed to load products");
       const data = await res.json();
       setProducts(data);
@@ -53,7 +54,8 @@ export default function AdminProducts() {
   const handleDelete = async (id) => {
     if (!window.confirm('Are you sure you want to permanently delete this item?')) return;
     try {
-      const res = await fetch(`http://localhost:5000/api/products/${id}`, {
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+      const res = await fetch(`${API_URL}/api/products/${id}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -72,9 +74,10 @@ export default function AdminProducts() {
     setErrorMsg('');
 
     const method = editingId ? 'PUT' : 'POST';
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
     const url = editingId 
-      ? `http://localhost:5000/api/products/${editingId}`
-      : `http://localhost:5000/api/products`;
+      ? `${API_URL}/api/products/${editingId}`
+      : `${API_URL}/api/products`;
 
     try {
       const res = await fetch(url, {
