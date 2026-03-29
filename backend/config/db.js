@@ -5,6 +5,7 @@ const mysql = require('mysql2');
 // instead of opening and closing a new connection for every single query.
 const pool = mysql.createPool({
   host: process.env.DB_HOST,
+  port: process.env.DB_PORT || 3306, // Added to support Railway cloud databases!
   user: process.env.DB_USER,
   password: process.env.DB_PASSWORD,
   database: process.env.DB_NAME,
