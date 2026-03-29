@@ -13,13 +13,25 @@ exports.getDashboardStats = async (req, res) => {
       [orderCount],
       [revenueResult],
       [lowStockItems],
-      [transactions]
+      [transactions],
+      [salesChartData]
     ] = await Promise.all([
       db.query('SELECT COUNT(*) as total FROM products'),
       db.query('SELECT COUNT(*) as total FROM orders'),
       db.query("SELECT SUM(total_amount) as revenue FROM orders WHERE status = 'completed'"),
       db.query('SELECT id, name, stock_quantity FROM products WHERE stock_quantity < 10 ORDER BY stock_quantity ASC'),
-      db.query('SELECT type, SUM(amount) as total FROM transactions GROUP BY type')
+      db.query('SELECT type, SUM(amount) as total FROM transactions GROUP BY type'),
+      db.query(`
+        SELECT 
+          DATE_FORMAT(created_at, '%b %d') as date,
+          SUM(CASE WHEN type = 'income' THEN amount ELSE 0 END) as revenue,
+          SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END) as expenses,
+          (SUM(CASE WHEN type = 'income' THEN amount ELSE 0 END) - SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END)) as profit
+        FROM transactions 
+        GROUP BY date
+        ORDER BY MAX(created_at) ASC
+        LIMIT 30
+      `)
     ]);
 
     // Format the raw SQL results into a clean Javascript object for the frontend
@@ -47,7 +59,8 @@ exports.getDashboardStats = async (req, res) => {
         totalRevenue: Number(totalRevenue),
         profit
       },
-      lowStockAlerts: lowStockItems
+      lowStockAlerts: lowStockItems,
+      salesGraph: salesChartData // This feeds directly into our new Recharts frontend UI!
     });
 
   } catch (error) {

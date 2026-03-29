@@ -32,8 +32,8 @@ export default function AdminLayout({ children }) {
         <h3>Admin Tools</h3>
         <ul>
           <li><Link href="/admin/dashboard" className="sidebar-link">📊 Dashboard</Link></li>
-          <li className="sidebar-disabled"><Link href="#" className="sidebar-link">🛒 Products (Soon)</Link></li>
-          <li className="sidebar-disabled"><Link href="#" className="sidebar-link">📦 Orders (Soon)</Link></li>
+          <li><Link href="/admin/products" className="sidebar-link">🛒 Products</Link></li>
+          <li><Link href="/admin/customers" className="sidebar-link">👥 Customers</Link></li>
         </ul>
       </aside>
 

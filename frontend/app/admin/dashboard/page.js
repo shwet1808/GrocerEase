@@ -1,6 +1,7 @@
 "use client";
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../../context/AuthContext';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 export default function AdminDashboard() {
   const { token, logout } = useAuth(); // We need the secure token to pass to the Bouncer!
@@ -80,6 +81,26 @@ export default function AdminDashboard() {
       </div>
 
       <div className="alerts-section">
+        <h3>📈 Sales & Profit Trend (Last 30 Days)</h3>
+        <div className="glass-card chart-container">
+          <ResponsiveContainer width="100%" height={350}>
+            <LineChart data={stats.salesGraph} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+              <XAxis dataKey="date" stroke="#64748B" tickMargin={10} />
+              <YAxis stroke="#64748B" tickFormatter={(value) => `$${value}`} />
+              <Tooltip 
+                contentStyle={{ borderRadius: '10px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }}
+                formatter={(value) => [`$${Number(value).toFixed(2)}`, undefined]}
+              />
+              <Legend wrapperStyle={{ paddingTop: '20px' }}/>
+              <Line type="monotone" dataKey="revenue" stroke="#3B82F6" strokeWidth={3} activeDot={{ r: 8 }} name="Gross Revenue" />
+              <Line type="monotone" dataKey="profit" stroke="#10B981" strokeWidth={3} name="Net Profit" />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      <div className="alerts-section" style={{ marginTop: '3rem' }}>
         <h3>🚨 Low Stock Alerts (Needs Restock)</h3>
         
         {stats.lowStockAlerts.length === 0 ? (
@@ -185,6 +206,12 @@ export default function AdminDashboard() {
           position: absolute;
           top: 0; left: 0; width: 100%; height: 4px;
           background: linear-gradient(90deg, #10B981, #34D399);
+        }
+
+        /* Chart Styling */
+        .chart-container {
+          padding: 2rem 1rem 1rem 0; 
+          margin-bottom: 2rem;
         }
 
         /* Table Styling */

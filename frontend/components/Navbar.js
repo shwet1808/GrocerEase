@@ -29,10 +29,7 @@ export default function Navbar() {
           <Link href="/login" className="btn-primary">Sign In</Link>
         ) : (
           <>
-            {user.role === 'customer' && (
-              <Link href="/cart" className="nav-item">Cart</Link>
-            )}
-            <span className="user-greeting">Hi, {user.name.split(' ')[0]}</span>
+            <span className="user-greeting">Welcome, {user.name.split(' ')[0]}</span>
             <button onClick={logout} className="btn-secondary">Logout</button>
           </>
         )}
