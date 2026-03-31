@@ -5,6 +5,7 @@ import { useAuth } from '../../context/AuthContext';
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [loading, setLoading] = useState(false);
   
@@ -68,15 +69,28 @@ export default function LoginPage() {
           </div>
 
           <div className="form-group">
-            <label className="form-label">Password</label>
-            <input 
-              type="password" 
-              className="input-field" 
-              placeholder="••••••••" 
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-            />
+            <div className="password-wrapper">
+              <input 
+                type={showPassword ? "text" : "password"} 
+                className="input-field password-input" 
+                placeholder="••••••••" 
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+              />
+              <button 
+                type="button" 
+                className="toggle-btn" 
+                onClick={() => setShowPassword(!showPassword)}
+                tabIndex="-1"
+              >
+                {showPassword ? (
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                ) : (
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                )}
+              </button>
+            </div>
           </div>
 
           <button type="submit" className="btn-primary login-btn" disabled={loading}>
@@ -101,32 +115,68 @@ export default function LoginPage() {
 
         .login-card {
           width: 100%;
-          max-width: 420px;
-          padding: 2.5rem;
+          max-width: 440px;
+          padding: 3rem 2.5rem;
+          background: rgba(255, 255, 255, 0.85);
+          backdrop-filter: blur(16px);
+          border: 1px solid rgba(255, 255, 255, 0.3);
+          box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.1);
+          border-radius: 20px;
         }
 
         .login-header {
           text-align: center;
-          margin-bottom: 2rem;
+          margin-bottom: 2.5rem;
         }
 
         .login-header h2 {
-          font-size: 2rem;
-          color: var(--color-dark);
+          font-size: 2.2rem;
+          background: linear-gradient(135deg, var(--color-dark), var(--color-primary-dark));
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
           margin-bottom: 0.5rem;
-          font-weight: 700;
+          font-weight: 800;
         }
 
         .login-header p {
           color: #64748B;
+          font-size: 1.05rem;
+        }
+
+        .password-wrapper {
+          position: relative;
+          display: flex;
+          align-items: center;
+        }
+
+        .password-input {
+          padding-right: 3rem; /* Make room for the eye icon */
+        }
+
+        .toggle-btn {
+          position: absolute;
+          right: 12px;
+          background: transparent;
+          border: none;
+          color: #94A3B8;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: color 0.2s ease;
+        }
+
+        .toggle-btn:hover {
+          color: var(--color-primary);
         }
 
         .error-badge {
           background-color: #FEF2F2;
           color: #DC2626;
-          padding: 0.75rem;
+          padding: 1rem;
           border-radius: var(--radius-md);
-          font-size: 0.9rem;
+          font-size: 0.95rem;
+          font-weight: 500;
           text-align: center;
           margin-bottom: 1.5rem;
           border: 1px solid #FECACA;
@@ -135,7 +185,18 @@ export default function LoginPage() {
 
         .login-btn {
           width: 100%;
-          margin-top: 1rem;
+          margin-top: 1.5rem;
+          padding: 1.1rem;
+          font-size: 1.1rem;
+          font-weight: 700;
+          letter-spacing: 0.5px;
+          border-radius: 12px;
+          box-shadow: 0 10px 15px -3px rgba(37, 99, 235, 0.2);
+        }
+
+        .login-btn:hover:not(:disabled) {
+          transform: translateY(-2px);
+          box-shadow: 0 15px 20px -5px rgba(37, 99, 235, 0.3);
         }
 
         .demo-hint {
