@@ -43,23 +43,24 @@ It is a **monorepo** with two independent workspaces:
 
 ## Architecture
 
-### Backend Architecture: Route → Middleware → Controller
+### Backend Architecture: Route → Middleware → Controller → Service
 
-Every feature follows this 3-layer pattern strictly:
+Every feature follows this 4-layer pattern strictly:
 
 ```
-Request → Route (traffic director) → Middleware (auth guard) → Controller (business logic + DB)
+Request → Route (traffic director) → Middleware (auth guard) → Controller (HTTP handler) → Service (business logic + DB)
 ```
 
 | Layer        | Path                    | Responsibility                          |
 |-------------|-------------------------|-----------------------------------------|
 | Routes      | `backend/routes/`       | Map HTTP methods to controller functions |
 | Middleware   | `backend/middleware/`   | JWT verification (`protect`) and role checks (`adminCheck`) |
-| Controllers  | `backend/controllers/`  | Business logic, DB queries, response handling |
+| Controllers  | `backend/controllers/`  | Parse HTTP request, call service, send HTTP response |
+| Services     | `backend/services/`     | Business logic, validation, SQL queries |
 | Config       | `backend/config/db.js`  | MySQL connection pool (promisified)      |
 | Scripts      | `backend/scripts/`      | DB setup (`setup_db.js`) and seeding (`seed_db.js`) |
 
-**When adding a new feature**, always create all three layers: route file, controller file, and wire middleware as needed.
+**When adding a new feature**, always create all four layers: route file, controller file, service file, and wire middleware as needed.
 
 ### Frontend Architecture: App Router + Context
 
@@ -184,7 +185,8 @@ Example: `// TODO: Add pagination to product listing`
 - Use database transactions for multi-step operations that must be atomic
 
 ### 5. Preserve Existing Patterns
-- New backend routes **must** follow: Route → Middleware → Controller
+- New backend routes **must** follow: Route → Middleware → Controller → Service
+- Controllers must NOT contain SQL queries or business logic — delegate to services
 - New frontend pages **must** use `"use client"` directive and the established API call pattern
 - New API calls **must** use the `NEXT_PUBLIC_API_URL` pattern — never hardcode URLs
 

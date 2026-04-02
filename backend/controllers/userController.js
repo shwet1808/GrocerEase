@@ -1,34 +1,34 @@
-const db = require('../config/db');
+// ============================================================================
+// USER CONTROLLER — backend/controllers/userController.js
+// ============================================================================
+//
+// This controller handles HTTP requests related to user management.
+// Currently, it provides admin-only access to view all registered users.
+// ============================================================================
 
-// ==========================================
+const userService = require('../services/userService');
+
+// ============================================================================
 // GET ALL CUSTOMERS (Admin Only)
 // GET /api/users
-// ==========================================
+// ============================================================================
+// Returns all registered users with their details and quick summary metrics.
+// Used in the admin panel's CRM (Customer Relationship Management) section.
+//
+// Only admins can access this (enforced by protect + adminCheck middleware).
+//
+// Success response (200 OK):
+//   {
+//     "metrics": { "totalCustomers": 9, "totalAdmins": 1 },
+//     "users": [{ "id": 1, "name": "John", "email": "...", "role": "customer", "joined_date": "Mar 15, 2026" }]
+//   }
+// ============================================================================
 exports.getAllUsers = async (req, res) => {
   try {
-    // Fetch all users. We specifically EXCLUDE passwords for security!
-    // We format the date nicely for the frontend.
-    const [users] = await db.query(`
-      SELECT 
-        id, 
-        name, 
-        email, 
-        role, 
-        DATE_FORMAT(created_at, '%b %d, %Y') as joined_date 
-      FROM users 
-      ORDER BY created_at DESC
-    `);
-    
-    // Calculate 2 quick stats for the CRM header
-    const totalCustomers = users.filter(u => u.role === 'customer').length;
-    const totalAdmins = users.filter(u => u.role === 'admin').length;
-
-    res.status(200).json({
-      metrics: { totalCustomers, totalAdmins },
-      users
-    });
+    const result = await userService.fetchAllUsers();
+    res.status(200).json(result);
   } catch (error) {
-    console.error("Error fetching users:", error);
-    res.status(500).json({ message: "Server error fetching customer data" });
+    console.error('Error fetching users:', error);
+    res.status(500).json({ message: 'Server error fetching customer data' });
   }
 };

@@ -1,70 +1,38 @@
-const db = require('../config/db');
+// ============================================================================
+// DASHBOARD CONTROLLER — backend/controllers/dashboardController.js
+// ============================================================================
+//
+// This controller handles the Admin Dashboard endpoint.
+// All the complex SQL queries and data formatting are handled by the
+// dashboard service — this file simply passes the request through.
+// ============================================================================
 
-// ==========================================
+const dashboardService = require('../services/dashboardService');
+
+// ============================================================================
 // GET DASHBOARD STATS (Admin Only)
 // GET /api/dashboard
-// ==========================================
+// ============================================================================
+// Returns a complete analytics overview for the store admin:
+//   - overview:       Total products, orders, revenue, and profit
+//   - lowStockAlerts: Products with less than 10 units remaining
+//   - salesGraph:     Daily revenue/expense data for charting
+//
+// Only admins can access this endpoint (enforced by protect + adminCheck middleware).
+//
+// Success response (200 OK):
+//   {
+//     "overview": { "totalProducts": 1000, "totalOrders": 20, "totalRevenue": 500, "profit": 500 },
+//     "lowStockAlerts": [{ "id": 42, "name": "Low Stock Item", "stock_quantity": 3 }],
+//     "salesGraph": [{ "date": "Mar 15", "revenue": 100, "expenses": 20, "profit": 80 }]
+//   }
+// ============================================================================
 exports.getDashboardStats = async (req, res) => {
   try {
-    // We can run multiple SQL queries at the exact same time using Promise.all
-    // This makes our endpoint super fast because it doesn't wait for query 1 to finish before starting query 2.
-    const [
-      [productCount],
-      [orderCount],
-      [revenueResult],
-      [lowStockItems],
-      [transactions],
-      [salesChartData]
-    ] = await Promise.all([
-      db.query('SELECT COUNT(*) as total FROM products'),
-      db.query('SELECT COUNT(*) as total FROM orders'),
-      db.query("SELECT SUM(total_amount) as revenue FROM orders WHERE status = 'completed'"),
-      db.query('SELECT id, name, stock_quantity FROM products WHERE stock_quantity < 10 ORDER BY stock_quantity ASC'),
-      db.query('SELECT type, SUM(amount) as total FROM transactions GROUP BY type'),
-      db.query(`
-        SELECT 
-          DATE_FORMAT(created_at, '%b %d') as date,
-          SUM(CASE WHEN type = 'income' THEN amount ELSE 0 END) as revenue,
-          SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END) as expenses,
-          (SUM(CASE WHEN type = 'income' THEN amount ELSE 0 END) - SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END)) as profit
-        FROM transactions 
-        GROUP BY date
-        ORDER BY MAX(created_at) ASC
-        LIMIT 30
-      `)
-    ]);
-
-    // Format the raw SQL results into a clean Javascript object for the frontend
-    const totalProducts = productCount[0].total || 0;
-    const totalOrders = orderCount[0].total || 0;
-    const totalRevenue = revenueResult[0].revenue || 0;
-
-    // Calculate Profit/Loss from the transactions table
-    let income = 0;
-    let expense = 0;
-    
-    // The transactions array might look like: [{ type: 'income', total: 500 }, { type: 'expense', total: 200 }]
-    transactions.forEach(t => {
-      if (t.type === 'income') income = Number(t.total);
-      if (t.type === 'expense') expense = Number(t.total);
-    });
-    
-    const profit = income - expense;
-
-    // Send the final compiled report to the frontend
-    res.status(200).json({
-      overview: {
-        totalProducts,
-        totalOrders,
-        totalRevenue: Number(totalRevenue),
-        profit
-      },
-      lowStockAlerts: lowStockItems,
-      salesGraph: salesChartData // This feeds directly into our new Recharts frontend UI!
-    });
-
+    const stats = await dashboardService.getStats();
+    res.status(200).json(stats);
   } catch (error) {
-    console.error("Error fetching dashboard stats:", error);
-    res.status(500).json({ message: "Server error while fetching analytics" });
+    console.error('Error fetching dashboard stats:', error);
+    res.status(500).json({ message: 'Server error while fetching analytics' });
   }
 };

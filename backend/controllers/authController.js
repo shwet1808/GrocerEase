@@ -1,114 +1,123 @@
-const db = require('../config/db');
-const bcrypt = require('bcryptjs'); // A library to securely hash passwords
-const jwt = require('jsonwebtoken'); // A library to generate authentication tokens
+// ============================================================================
+// AUTH CONTROLLER — backend/controllers/authController.js
+// ============================================================================
+//
+// WHAT IS A CONTROLLER?
+// ---------------------
+// A Controller is the "traffic cop" between the HTTP world and the business logic.
+// Its ONLY responsibilities are:
+//   1. Extract data from the incoming HTTP request (req.body, req.params, etc.)
+//   2. Call the appropriate Service function (which does the real work)
+//   3. Send back an HTTP response (res.json) with the result or error
+//
+// A Controller should NEVER:
+//   ✗ Contain SQL queries (that's the Service's job)
+//   ✗ Contain business logic like password hashing (that's the Service's job)
+//   ✗ Import the database module directly
+//
+// This separation keeps each file small, focused, and easy to understand.
+// ============================================================================
 
-// ==========================================
+const authService = require('../services/authService');
+
+// ============================================================================
 // SIGNUP CONTROLLER
 // POST /api/auth/signup
-// ==========================================
+// ============================================================================
+// Handles new user registration requests.
+//
+// Expected request body:
+//   { "name": "John Doe", "email": "john@example.com", "password": "secret123", "role": "customer" }
+//
+// Success response (201 Created):
+//   { "message": "User registered successfully!", "userId": 42 }
+//
+// Error responses:
+//   400 — missing fields or email already exists
+//   500 — unexpected server error
+// ============================================================================
 exports.signup = async (req, res) => {
   try {
-    // 1. Extract data from the incoming request body
+    // Step 1: Extract the data from the request body
     const { name, email, password, role } = req.body;
 
-    // 2. Input Validation (Basic)
+    // Step 2: Quick validation — check if required fields are present
+    // We do this in the controller (not the service) because it's an HTTP-level concern:
+    // we need to tell the client they sent a bad request (400) immediately.
     if (!name || !email || !password) {
-      // 400 Bad Request indicates the user didn't send what we needed
-      return res.status(400).json({ message: "Please provide name, email, and password." });
+      return res.status(400).json({
+        message: 'Please provide name, email, and password.'
+      });
     }
 
-    // 3. Check if user already exists
-    // We use a prepared statement (?) to prevent SQL Injection attacks
-    const [existingUsers] = await db.query('SELECT * FROM users WHERE email = ?', [email]);
-    if (existingUsers.length > 0) {
-      return res.status(400).json({ message: "A user with this email already exists." });
-    }
+    // Step 3: Delegate the actual work to the auth service
+    // The service handles: duplicate checking, password hashing, DB insertion
+    const result = await authService.createUser(name, email, password, role);
 
-    // 4. Secure Password Hashing
-    // We generate a "salt" (random data) to make the hash unique, even if two users have the same password.
-    // Cost factor = 10 (higher is more secure but slower to compute)
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
-
-    // 5. Determine the role (default to 'customer' if not provided)
-    // In a real app, you wouldn't let just anyone send {role: 'admin'} in a signup body!
-    const userRole = role === 'admin' ? 'admin' : 'customer';
-
-    // 6. Insert into database
-    const [result] = await db.query(
-      'INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, ?)',
-      [name, email, hashedPassword, userRole]
-    );
-
-    // 7. Send a successful response
-    // 201 Created
-    res.status(201).json({ 
-      message: "User registered successfully!", 
-      userId: result.insertId 
+    // Step 4: Send the success response
+    // 201 = "Created" — the standard HTTP code for successful resource creation
+    res.status(201).json({
+      message: 'User registered successfully!',
+      userId: result.userId
     });
 
   } catch (error) {
-    console.error("Signup error:", error);
-    // 500 Internal Server Error means something broke on our backend code/database
-    res.status(500).json({ message: "Server error during registration." });
+    // If the service threw an error with a statusCode (e.g., 400 for duplicate email),
+    // use that. Otherwise, default to 500 (Internal Server Error).
+    console.error('Signup error:', error);
+    const statusCode = error.statusCode || 500;
+    res.status(statusCode).json({
+      message: error.message || 'Server error during registration.'
+    });
   }
 };
 
 
-// ==========================================
+// ============================================================================
 // LOGIN CONTROLLER
 // POST /api/auth/login
-// ==========================================
+// ============================================================================
+// Handles user login requests. Returns a JWT token on success.
+//
+// Expected request body:
+//   { "email": "john@example.com", "password": "secret123" }
+//
+// Success response (200 OK):
+//   { "message": "Login successful", "token": "eyJhbG...", "user": { id, name, email, role } }
+//
+// Error responses:
+//   400 — missing email or password
+//   401 — invalid credentials
+//   500 — unexpected server error
+// ============================================================================
 exports.login = async (req, res) => {
   try {
+    // Step 1: Extract credentials from the request body
     const { email, password } = req.body;
 
-    // 1. Input Validation
+    // Step 2: Quick validation
     if (!email || !password) {
-      return res.status(400).json({ message: "Please provide email and password." });
+      return res.status(400).json({
+        message: 'Please provide email and password.'
+      });
     }
 
-    // 2. Check if user exists in the database
-    const [users] = await db.query('SELECT * FROM users WHERE email = ?', [email]);
-    if (users.length === 0) {
-      // We use 401 Unauthorized for bad credentials
-      // Notice we don't say "Email doesn't exist" - keeping it vague protects against hackers guessing emails.
-      return res.status(401).json({ message: "Invalid email or password." });
-    }
+    // Step 3: Delegate to the auth service
+    // The service handles: user lookup, password verification, JWT generation
+    const result = await authService.authenticateUser(email, password);
 
-    const user = users[0]; // Get the actual user object
-
-    // 3. Verify the password
-    // bcrypt.compare hashes the incoming password and checks if it matches the hash in the DB
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
-      return res.status(401).json({ message: "Invalid email or password." });
-    }
-
-    // 4. Generate a JWT Token (JSON Web Token)
-    // This token acts like a temporary ID card.
-    // We pack (sign) the user's ID and role inside the token. 
-    // They will send this token back to us on future requests (like placing an order) to prove who they are.
-    const token = jwt.sign(
-      { userId: user.id, role: user.role }, // Payload (data we want to store)
-      process.env.JWT_SECRET,               // The secret key from our .env file that ensures it can't be forged
-      { expiresIn: '1d' }                   // Token expires in 1 day
-    );
-
-    // 5. Send successful response with the token
+    // Step 4: Send the success response with the token
     res.status(200).json({
-      message: "Login successful",
-      token: token,
-      user: {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        role: user.role
-      }
+      message: 'Login successful',
+      token: result.token,
+      user: result.user
     });
 
   } catch (error) {
-    console.error("Login error:", error);
-    res.status(500).json({ message: "Server error during login." });
+    console.error('Login error:', error);
+    const statusCode = error.statusCode || 500;
+    res.status(statusCode).json({
+      message: error.message || 'Server error during login.'
+    });
   }
 };
