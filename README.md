@@ -287,6 +287,6 @@ The easiest way to understand the backend is to imagine a **high-end restaurant*
 
 <div align="center">
 
-**Built by [@shwet1808](https://github.com/shwet1808)** · Made with ❤️ for learning full-stack development
+**Built by [@shwet1808](https://github.com/shwet1808)** for learning full-stack development
 
 </div>
