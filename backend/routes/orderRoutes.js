@@ -50,4 +50,10 @@ router.get('/myorders', orderController.getMyOrders);
 // The extra 'adminCheck' middleware ensures only admins can see everyone's orders
 router.get('/', adminCheck, orderController.getAllOrders);
 
+// POST /api/orders/admin — Place an order on behalf of a customer (admin panel)
+router.post('/admin', adminCheck, orderController.createAdminOrder);
+
+// PUT /api/orders/:id/return — Customer or Admin requests a return
+router.put('/:id/return', orderController.returnOrder);
+
 module.exports = router;
