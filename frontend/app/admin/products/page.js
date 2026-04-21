@@ -1,14 +1,6 @@
 "use client";
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../../context/AuthContext';
-import { z } from 'zod';
-
-const productSchema = z.object({
-  name: z.string().min(2, "Product name must be at least 2 characters."),
-  description: z.string().optional(),
-  price: z.preprocess((val) => Number(val), z.number().min(0.01, "Price must be greater than 0.")),
-  stock_quantity: z.preprocess((val) => Number(val), z.number().int().min(0, "Stock cannot be negative."))
-});
 
 export default function AdminProducts() {
   const { token, logout } = useAuth();
@@ -19,14 +11,10 @@ export default function AdminProducts() {
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [formData, setFormData] = useState({ name: '', description: '', price: '', stock_quantity: '' });
-  const [errorMsgs, setErrorMsgs] = useState({});
+  const [errorMsg, setErrorMsg] = useState('');
 
-  useEffect(() => {
-    fetchProducts();
-  }, [token]);
-
+  // Fetch all products on load
   const fetchProducts = async () => {
-    if (!token) return;
     try {
       const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
       const res = await fetch(`${API_URL}/api/products`);
@@ -40,10 +28,14 @@ export default function AdminProducts() {
     }
   };
 
+  useEffect(() => {
+    fetchProducts();
+  }, []);
+
   const handleOpenAddModal = () => {
     setEditingId(null);
     setFormData({ name: '', description: '', price: '', stock_quantity: '' });
-    setErrorMsgs({});
+    setErrorMsg('');
     setShowModal(true);
   };
 
@@ -51,11 +43,11 @@ export default function AdminProducts() {
     setEditingId(product.id);
     setFormData({ 
       name: product.name, 
-      description: product.description || '', 
+      description: product.description, 
       price: product.price, 
       stock_quantity: product.stock_quantity 
     });
-    setErrorMsgs({});
+    setErrorMsg('');
     setShowModal(true);
   };
 
@@ -69,6 +61,8 @@ export default function AdminProducts() {
       });
       if (res.status === 401 || res.status === 403) return logout();
       if (!res.ok) throw new Error("Failed to delete");
+      
+      // Remove from UI instantly
       setProducts(products.filter(p => p.id !== id));
     } catch (err) {
       alert(err.message);
@@ -77,23 +71,13 @@ export default function AdminProducts() {
 
   const handleFormSubmit = async (e) => {
     e.preventDefault();
-    setErrorMsgs({});
+    setErrorMsg('');
 
-    // Zod Validation
-    const validation = productSchema.safeParse(formData);
-    if (!validation.success) {
-      const formattedErrors = {};
-      validation.error.errors.forEach(err => {
-        formattedErrors[err.path[0]] = err.message;
-      });
-      setErrorMsgs(formattedErrors);
-      return;
-    }
-
-    const validData = validation.data;
     const method = editingId ? 'PUT' : 'POST';
     const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
-    const url = editingId ? `${API_URL}/api/products/${editingId}` : `${API_URL}/api/products`;
+    const url = editingId 
+      ? `${API_URL}/api/products/${editingId}`
+      : `${API_URL}/api/products`;
 
     try {
       const res = await fetch(url, {
@@ -102,56 +86,53 @@ export default function AdminProducts() {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify(validData)
+        body: JSON.stringify(formData)
       });
 
       if (res.status === 401 || res.status === 403) return logout();
       if (!res.ok) throw new Error("Failed to save product");
-      
+
+      // Refresh the entire list magically
       await fetchProducts();
       setShowModal(false);
     } catch (err) {
-      setErrorMsgs({ global: err.message });
+      setErrorMsg(err.message);
     }
   };
 
   if (loading) return <div className="loading-state">Loading Store Catalog...</div>;
 
   return (
-    <div className="animate-stagger">
-      <div className="header-flex">
+    <div className="erp-wrapper">
+      <div className="erp-header">
         <div>
           <h2>Product Inventory</h2>
-          <p style={{color: 'var(--color-muted)'}}>Manage pricing, stock limits, and descriptions.</p>
+          <p>Manage pricing, stock limits, and descriptions.</p>
         </div>
         <button onClick={handleOpenAddModal} className="btn-primary">+ Add New Item</button>
       </div>
 
-      <div className="glass-panel">
+      <div className="glass-card table-wrapper">
         <table className="erp-table">
           <thead>
             <tr>
               <th>ID</th>
               <th>Name</th>
-              <th>Price (₹)</th>
+              <th>Price</th>
               <th>Stock</th>
-              <th style={{textAlign: 'right'}}>Actions</th>
+              <th>Actions</th>
             </tr>
           </thead>
           <tbody>
             {products.map(product => (
               <tr key={product.id}>
-                <td style={{color: 'var(--color-muted)'}}>#{product.id}</td>
-                <td style={{fontWeight: 600}}>{product.name}</td>
-                <td className="currency">₹{Number(product.price).toFixed(2)}</td>
-                <td>
-                  <span className={`badge ${product.stock_quantity > 10 ? 'badge-neutral' : 'badge-danger'}`}>
-                    {product.stock_quantity} units
-                  </span>
-                </td>
-                <td style={{textAlign: 'right'}}>
-                  <button onClick={() => handleOpenEditModal(product)} className="btn-secondary btn-sm" style={{marginRight: '0.5rem'}}>Edit</button>
-                  <button onClick={() => handleDelete(product.id)} className="btn-danger btn-sm">Delete</button>
+                <td>#{product.id}</td>
+                <td className="product-name">{product.name}</td>
+                <td className="product-price">${Number(product.price).toFixed(2)}</td>
+                <td>{product.stock_quantity} units</td>
+                <td className="action-buttons">
+                  <button onClick={() => handleOpenEditModal(product)} className="btn-edit">Edit</button>
+                  <button onClick={() => handleDelete(product.id)} className="btn-delete">Delete</button>
                 </td>
               </tr>
             ))}
@@ -161,35 +142,31 @@ export default function AdminProducts() {
 
       {showModal && (
         <div className="modal-overlay">
-          <div className="glass-panel modal-content animate-stagger">
+          <div className="glass-card modal-content">
             <h3>{editingId ? 'Edit Product' : 'Add New Product'}</h3>
-            {errorMsgs.global && <div className="badge badge-danger" style={{marginBottom: '1rem'}}>{errorMsgs.global}</div>}
+            {errorMsg && <div className="error-badge">{errorMsg}</div>}
             
             <form onSubmit={handleFormSubmit}>
               <div className="form-group">
                 <label className="form-label">Item Name</label>
-                <input type="text" className="input-field" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
-                {errorMsgs.name && <span className="error-text">{errorMsgs.name}</span>}
+                <input required type="text" className="input-field" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
               </div>
               <div className="form-group">
                 <label className="form-label">Description</label>
                 <textarea className="input-field" rows="3" value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})}></textarea>
-                {errorMsgs.description && <span className="error-text">{errorMsgs.description}</span>}
               </div>
-              <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem'}}>
+              <div className="form-row">
                 <div className="form-group">
-                  <label className="form-label">Price (₹)</label>
-                  <input type="number" step="0.01" className="input-field" value={formData.price} onChange={e => setFormData({...formData, price: e.target.value})} />
-                  {errorMsgs.price && <span className="error-text">{errorMsgs.price}</span>}
+                  <label className="form-label">Price ($)</label>
+                  <input required type="number" step="0.01" className="input-field" value={formData.price} onChange={e => setFormData({...formData, price: e.target.value})} />
                 </div>
                 <div className="form-group">
                   <label className="form-label">Stock Quantity</label>
-                  <input type="number" className="input-field" value={formData.stock_quantity} onChange={e => setFormData({...formData, stock_quantity: e.target.value})} />
-                  {errorMsgs.stock_quantity && <span className="error-text">{errorMsgs.stock_quantity}</span>}
+                  <input required type="number" className="input-field" value={formData.stock_quantity} onChange={e => setFormData({...formData, stock_quantity: e.target.value})} />
                 </div>
               </div>
               
-              <div style={{display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '2rem'}}>
+              <div className="modal-actions">
                 <button type="button" onClick={() => setShowModal(false)} className="btn-secondary">Cancel</button>
                 <button type="submit" className="btn-primary">Save Changes</button>
               </div>
@@ -199,21 +176,46 @@ export default function AdminProducts() {
       )}
 
       <style jsx>{`
-        .header-flex { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 2.5rem; }
-        .btn-sm { padding: 0.4rem 1rem; font-size: 0.85rem; }
+        .erp-wrapper { animation: slideIn 0.4s ease-out; }
+        
+        .erp-header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 2rem; }
+        .erp-header h2 { font-size: 2rem; color: var(--color-dark); margin-bottom: 0.25rem; }
+        .erp-header p { color: #64748B; font-size: 1.1rem; }
+
+        .table-wrapper { overflow: hidden; padding: 0; }
+        .erp-table { width: 100%; border-collapse: collapse; text-align: left; }
+        .erp-table th { padding: 1.25rem 1.5rem; background: #F8FAFC; color: #475569; border-bottom: 1px solid #E2E8F0; }
+        .erp-table td { padding: 1rem 1.5rem; border-bottom: 1px solid #F1F5F9; color: #334155; }
+        
+        .product-name { font-weight: 600; color: var(--color-dark); }
+        .product-price { font-variant-numeric: tabular-nums; color: var(--color-primary-dark); font-weight: 500; }
+
+        .action-buttons { display: flex; gap: 0.5rem; }
+        .btn-edit, .btn-delete { padding: 0.4rem 0.8rem; border-radius: 6px; font-size: 0.85rem; font-weight: 600; border: none; cursor: pointer; transition: 0.2s; }
+        .btn-edit { background: #E0F2FE; color: #0284C7; }
+        .btn-edit:hover { background: #BAE6FD; }
+        .btn-delete { background: #FEF2F2; color: #DC2626; }
+        .btn-delete:hover { background: #FECACA; }
+
         .modal-overlay {
           position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-          background: rgba(10, 10, 10, 0.5); backdrop-filter: blur(8px);
+          background: rgba(15, 23, 42, 0.4); backdrop-filter: blur(4px);
           display: flex; justify-content: center; align-items: center; z-index: 999;
-          animation: fadeIn 0.3s ease-out;
+          animation: fadeIn 0.2s ease-out;
         }
+
         .modal-content {
-          width: 100%; max-width: 550px; padding: 3rem;
-          background: rgba(255, 255, 255, 0.95);
+          width: 100%; max-width: 500px; padding: 2.5rem;
+          background: white; transform: translateY(0);
         }
-        .modal-content h3 { margin-bottom: 2rem; font-size: 1.8rem; }
-        .error-text { color: var(--danger); font-size: 0.8rem; font-weight: 500; margin-top: -0.2rem; }
-        .loading-state { text-align: center; font-weight: 500; color: var(--color-muted); padding: 5rem 0; }
+        
+        .modal-content h3 { margin-bottom: 1.5rem; font-size: 1.5rem; color: var(--color-dark); }
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+        
+        .modal-actions { display: flex; justify-content: flex-end; gap: 1rem; margin-top: 2rem; }
+        .loading-state { padding: 3rem; text-align: center; color: #64748B; }
+
+        @keyframes slideIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
       `}</style>
     </div>

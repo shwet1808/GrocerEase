@@ -179,62 +179,6 @@ const placeOrder = async (userId, items) => {
   }
 };
 
-// ============================================================================
-// RETURN AN ORDER
-// ============================================================================
-// Mark an order as returned and refund the transaction + stock
-const returnOrder = async (orderId, userId) => {
-  const connection = await db.getConnection();
-  try {
-    await connection.beginTransaction();
-
-    // Verify order exists
-    const [orders] = await connection.query(
-      'SELECT * FROM orders WHERE id = ? FOR UPDATE',
-      [orderId]
-    );
-
-    if (orders.length === 0) throw new Error('Order not found');
-    const order = orders[0];
-
-    if (userId && order.user_id !== userId) {
-      const error = new Error('Unauthorized');
-      error.statusCode = 403;
-      throw error;
-    }
-
-    if (order.status === 'returned' || order.status === 'cancelled') {
-      throw new Error(`Order is already ${order.status}`);
-    }
-
-    // Update status to 'returned'
-    await connection.query('UPDATE orders SET status = "returned" WHERE id = ?', [orderId]);
-
-    // Restore stock
-    const [items] = await connection.query('SELECT product_id, quantity FROM order_items WHERE order_id = ?', [orderId]);
-    for (let item of items) {
-      await connection.query(
-        'UPDATE products SET stock_quantity = stock_quantity + ? WHERE id = ?',
-        [item.quantity, item.product_id]
-      );
-    }
-
-    // Log the refund as an "expense" transaction
-    await connection.query(
-      'INSERT INTO transactions (type, amount, description) VALUES (?, ?, ?)',
-      ['expense', order.total_amount, `Refund for returned Order #${orderId}`]
-    );
-
-    await connection.commit();
-    return { success: true };
-  } catch (error) {
-    await connection.rollback();
-    throw error;
-  } finally {
-    connection.release();
-  }
-};
-
 
 // ============================================================================
 // FETCH ORDERS FOR A SPECIFIC USER
@@ -286,6 +230,5 @@ const fetchAllOrders = async () => {
 module.exports = {
   placeOrder,
   fetchOrdersByUser,
-  fetchAllOrders,
-  returnOrder
+  fetchAllOrders
 };

@@ -1,115 +1,302 @@
 "use client";
-import React, { useState } from 'react';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-
-const dummySalesData = [
-  { name: 'Mon', sales: 4000, returns: 240 },
-  { name: 'Tue', sales: 3000, returns: 139 },
-  { name: 'Wed', sales: 2000, returns: 980 },
-  { name: 'Thu', sales: 2780, returns: 390 },
-  { name: 'Fri', sales: 1890, returns: 480 },
-  { name: 'Sat', sales: 2390, returns: 380 },
-  { name: 'Sun', sales: 3490, returns: 430 },
-];
+import React, { useEffect, useState } from 'react';
+import { useAuth } from '../../../context/AuthContext';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 export default function AdminDashboard() {
+  const { token, logout } = useAuth(); // We need the secure token to pass to the Bouncer!
+  const [stats, setStats] = useState(null);
+  const [errorMsg, setErrorMsg] = useState('');
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchDashboardStats = async () => {
+      if (!token) return; // Don't try fetching if wait for token
+
+      try {
+        const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+        const response = await fetch(`${API_URL}/api/dashboard`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            // 🚨 We attach the digital ID card to the HTTP Header!
+            'Authorization': `Bearer ${token}` 
+          }
+        });
+
+        // Did our Bouncer kick us out? (Maybe token expired)
+        if (response.status === 401 || response.status === 403) {
+           logout();
+           return;
+        }
+
+        if (!response.ok) {
+          throw new Error('Failed to load dashboard data');
+        }
+
+        const data = await response.json();
+        setStats(data); // `data` contains { overview: {...}, lowStockAlerts: [...] }
+
+      } catch (err) {
+        setErrorMsg(err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDashboardStats();
+  }, [token, logout]);
+
+  if (loading) return <div className="loading-state">Loading Financial Data...</div>;
+  if (errorMsg) return <div className="error-badge">{errorMsg}</div>;
+  if (!stats) return null;
+
   return (
-    <div className="animate-stagger">
-      <div className="header-flex">
-        <div>
-          <h2>Sales & Returns Overview</h2>
-          <p style={{color: 'var(--color-muted)'}}>Graphical telemetry and manual returns oversight.</p>
+    <div className="dashboard-wrapper">
+      <div className="dash-header">
+        <h2>Store Overview</h2>
+        <p>Live metrics compiled directly from the MySQL engine.</p>
+      </div>
+
+      {/* 4 Beautiful KPI Cards */}
+      <div className="kpi-grid">
+        <div className="glass-card stat-card">
+          <p className="stat-title">Total Products</p>
+          <h3 className="stat-value">{stats.overview.totalProducts}</h3>
+        </div>
+        
+        <div className="glass-card stat-card">
+          <p className="stat-title">Total Orders</p>
+          <h3 className="stat-value">{stats.overview.totalOrders}</h3>
+        </div>
+
+        <div className="glass-card stat-card revenue-card">
+          <p className="stat-title">Gross Revenue</p>
+          <h3 className="stat-value">${stats.overview.totalRevenue.toFixed(2)}</h3>
+        </div>
+
+        <div className="glass-card stat-card profit-card">
+          <p className="stat-title">Net Profit</p>
+          <h3 className="stat-value">${stats.overview.profit.toFixed(2)}</h3>
         </div>
       </div>
 
-      <div style={{display: 'flex', gap: '1.5rem', marginBottom: '2.5rem'}}>
-        <div className="glass-panel stat-card">
-          <p className="kpi-label">Weekly Net Sales</p>
-          <h3>₹19,550.00</h3>
-        </div>
-        <div className="glass-panel stat-card">
-          <p className="kpi-label">Return Frequency</p>
-          <h3 style={{color: 'var(--color-accent)'}}>4.2%</h3>
-        </div>
-        <div className="glass-panel stat-card">
-          <p className="kpi-label">Outstanding Value</p>
-          <h3>₹3,030.00</h3>
-        </div>
-      </div>
-
-      <div className="glass-panel" style={{padding: '2.5rem', marginBottom: '2.5rem'}}>
-        <h4 style={{marginBottom: '1.5rem', color: 'var(--color-muted)', letterSpacing: '0.05em'}}>Revenue vs Returns</h4>
-        <div style={{height: '350px'}}>
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={dummySalesData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-              <defs>
-                <linearGradient id="colorSales" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="var(--color-primary-light)" stopOpacity={0.3}/>
-                  <stop offset="95%" stopColor="var(--color-primary-light)" stopOpacity={0}/>
-                </linearGradient>
-                <linearGradient id="colorReturns" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="var(--color-accent)" stopOpacity={0.3}/>
-                  <stop offset="95%" stopColor="var(--color-accent)" stopOpacity={0}/>
-                </linearGradient>
-              </defs>
-              <XAxis dataKey="name" stroke="var(--color-muted)" tick={{fill: 'var(--color-muted)'}} />
-              <YAxis stroke="var(--color-muted)" tick={{fill: 'var(--color-muted)'}} />
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(0,0,0,0.05)" />
+      <div className="alerts-section">
+        <h3>📈 Sales & Profit Trend (Last 30 Days)</h3>
+        <div className="glass-card chart-container">
+          <ResponsiveContainer width="100%" height={350}>
+            <LineChart data={stats.salesGraph} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+              <XAxis dataKey="date" stroke="#64748B" tickMargin={10} />
+              <YAxis stroke="#64748B" tickFormatter={(value) => `$${value}`} />
               <Tooltip 
-                contentStyle={{background: 'rgba(255,255,255,0.9)', backdropFilter: 'blur(10px)', borderRadius: '12px', border: 'none', boxShadow: '0 10px 25px rgba(0,0,0,0.1)'}} 
+                contentStyle={{ borderRadius: '10px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }}
+                formatter={(value) => [`$${Number(value).toFixed(2)}`, undefined]}
               />
-              <Area type="monotone" dataKey="sales" stroke="var(--color-primary)" fillOpacity={1} fill="url(#colorSales)" />
-              <Area type="monotone" dataKey="returns" stroke="var(--color-accent)" fillOpacity={1} fill="url(#colorReturns)" />
-            </AreaChart>
+              <Legend wrapperStyle={{ paddingTop: '20px' }}/>
+              <Line type="monotone" dataKey="revenue" stroke="#3B82F6" strokeWidth={3} activeDot={{ r: 8 }} name="Gross Revenue" />
+              <Line type="monotone" dataKey="profit" stroke="#10B981" strokeWidth={3} name="Net Profit" />
+            </LineChart>
           </ResponsiveContainer>
         </div>
       </div>
 
-      <div className="glass-panel">
-        <div style={{padding: '1.5rem 1.5rem 0'}}>
-          <h4 style={{color: 'var(--color-muted)', letterSpacing: '0.05em', marginBottom: '1rem'}}>Recent Platform Transactions (Simulated)</h4>
-        </div>
-        <table className="erp-table">
-          <thead>
-            <tr>
-              <th>Order Ref</th>
-              <th>Date</th>
-              <th>Customer</th>
-              <th>Type</th>
-              <th style={{textAlign: 'right'}}>Amount (₹)</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td style={{color: 'var(--color-muted)'}}>#ORD-4921</td>
-              <td>Today, 14:30</td>
-              <td style={{fontWeight: 700}}>Alice Vanguard</td>
-              <td><span className="badge badge-success">Sale</span></td>
-              <td style={{textAlign: 'right'}} className="currency">₹4,200.00</td>
-            </tr>
-            <tr>
-              <td style={{color: 'var(--color-muted)'}}>#ORD-4919</td>
-              <td>Today, 11:15</td>
-              <td style={{fontWeight: 700}}>Bob Architect</td>
-              <td><span className="badge badge-warning">Return</span></td>
-              <td style={{textAlign: 'right'}} className="currency">-₹850.50</td>
-            </tr>
-            <tr>
-              <td style={{color: 'var(--color-muted)'}}>#ORD-4918</td>
-              <td>Yesterday</td>
-              <td style={{fontWeight: 700}}>Charlie Driver</td>
-              <td><span className="badge badge-success">Sale</span></td>
-              <td style={{textAlign: 'right'}} className="currency">₹1,100.00</td>
-            </tr>
-          </tbody>
-        </table>
+      <div className="alerts-section" style={{ marginTop: '3rem' }}>
+        <h3>🚨 Low Stock Alerts (Needs Restock)</h3>
+        
+        {stats.lowStockAlerts.length === 0 ? (
+           <p className="all-good-msg">All items are beautifully stocked. No action needed.</p>
+        ) : (
+          <div className="glass-card table-wrapper">
+            <table className="inventory-table">
+              <thead>
+                <tr>
+                  <th>Product ID</th>
+                  <th>Product Name</th>
+                  <th>Current Stock</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {stats.lowStockAlerts.map(item => (
+                  <tr key={item.id}>
+                    <td>#{item.id}</td>
+                    <td className="item-name">{item.name}</td>
+                    <td className="item-stock">{item.stock_quantity} units</td>
+                    <td>
+                      <span className={`status-badge ${item.stock_quantity === 0 ? 'critical' : 'warning'}`}>
+                        {item.stock_quantity === 0 ? 'OUT OF STOCK' : 'LOW SUPPLY'}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       <style jsx>{`
-        .header-flex { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 2.5rem; }
-        .stat-card { flex: 1; padding: 2rem; position: relative; overflow: hidden; }
-        .kpi-label { font-size: 0.85rem; color: var(--color-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem; }
-        .stat-card h3 { font-size: 2.5rem; color: var(--color-dark); }
+        .dashboard-wrapper {
+          animation: slideUp 0.6s ease-out;
+        }
+
+        .dash-header {
+          margin-bottom: 2rem;
+        }
+
+        .dash-header h2 {
+          font-size: 2rem;
+          color: var(--color-dark);
+          letter-spacing: -1px;
+          margin-bottom: 0.25rem;
+        }
+
+        .dash-header p {
+          color: #64748B;
+          font-size: 1.1rem;
+        }
+
+        .kpi-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+          gap: 1.5rem;
+          margin-bottom: 3rem;
+        }
+
+        .stat-card {
+          padding: 1.5rem;
+          display: flex;
+          flex-direction: column;
+          align-items: flex-start;
+          transition: transform 0.2s;
+        }
+        
+        .stat-card:hover {
+          transform: translateY(-5px);
+        }
+
+        .stat-title {
+          font-size: 0.9rem;
+          color: #64748B;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+          font-weight: 500;
+          margin-bottom: 0.5rem;
+        }
+
+        .stat-value {
+          font-size: 2.5rem;
+          font-weight: 700;
+          color: var(--color-dark);
+          line-height: 1;
+        }
+
+        /* Specialized card colors */
+        .revenue-card .stat-value {
+          color: var(--color-primary-dark);
+        }
+
+        .profit-card {
+          position: relative;
+          overflow: hidden;
+        }
+        
+        .profit-card::after {
+          content: "";
+          position: absolute;
+          top: 0; left: 0; width: 100%; height: 4px;
+          background: linear-gradient(90deg, #10B981, #34D399);
+        }
+
+        /* Chart Styling */
+        .chart-container {
+          padding: 2rem 1rem 1rem 0; 
+          margin-bottom: 2rem;
+        }
+
+        /* Table Styling */
+        .alerts-section h3 {
+          font-size: 1.5rem;
+          color: #0F172A;
+          margin-bottom: 1.5rem;
+        }
+
+        .table-wrapper {
+          padding: 0;
+          overflow: hidden;
+        }
+
+        .inventory-table {
+          width: 100%;
+          border-collapse: collapse;
+          text-align: left;
+        }
+
+        .inventory-table th {
+          padding: 1.25rem 1.5rem;
+          background-color: #F8FAFC;
+          color: #475569;
+          font-weight: 600;
+          border-bottom: 1px solid #E2E8F0;
+        }
+
+        .inventory-table td {
+          padding: 1rem 1.5rem;
+          border-bottom: 1px solid #F1F5F9;
+          color: #334155;
+        }
+
+        .item-name {
+          font-weight: 500;
+        }
+
+        .item-stock {
+          font-variant-numeric: tabular-nums; /* Makes numbers align perfectly */
+        }
+
+        /* Dynamic Badges */
+        .status-badge {
+          display: inline-block;
+          font-size: 0.75rem;
+          font-weight: 700;
+          padding: 0.25rem 0.75rem;
+          border-radius: 999px;
+          letter-spacing: 0.5px;
+        }
+
+        .status-badge.critical {
+          background-color: #FEF2F2;
+          color: #DC2626;
+          border: 1px solid #FECACA;
+        }
+
+        .status-badge.warning {
+          background-color: #FFFBEB;
+          color: #D97706;
+          border: 1px solid #FDE68A;
+        }
+
+        .all-good-msg {
+          padding: 2rem;
+          background: #ECFDF5;
+          color: #065F46;
+          border-radius: var(--radius-lg);
+          font-weight: 500;
+          text-align: center;
+        }
+
+        .loading-state, .error-badge {
+          padding: 3rem;
+          text-align: center;
+          font-size: 1.2rem;
+          color: #64748B;
+        }
+
+        @keyframes slideUp {
+          from { opacity: 0; transform: translateY(20px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
       `}</style>
     </div>
   );
