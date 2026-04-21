@@ -36,7 +36,12 @@ const pool = mysql.createPool({
   database: process.env.DB_NAME,          // Which database to use (e.g., "grocerease")
   waitForConnections: true,               // If all connections are in use, wait rather than throwing an error
   connectionLimit: 10,                    // Maximum 10 simultaneous connections (our "study rooms")
-  queueLimit: 0                           // No limit on how many requests can wait in the queue (0 = unlimited)
+  queueLimit: 0,                          // No limit on how many requests can wait in the queue (0 = unlimited)
+  ssl: {
+    minVersion: 'TLSv1.2',
+    rejectUnauthorized: true,
+    servername: process.env.DB_HOST
+  }
 });
 
 // ============================================================================
