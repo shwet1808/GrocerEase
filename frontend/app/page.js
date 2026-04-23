@@ -52,7 +52,7 @@ export default function Home() {
 
       <style jsx>{`
         .landing-wrapper {
-          min-height: 85vh;
+          min-height: calc(100vh - 200px);
           display: flex;
           flex-direction: column;
           align-items: center;
@@ -97,7 +97,7 @@ export default function Home() {
         .hero-section {
           text-align: center;
           max-width: 800px;
-          margin-bottom: 5rem;
+          margin-bottom: 3rem;
           animation: fadeUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
         }
 

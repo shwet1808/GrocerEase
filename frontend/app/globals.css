@@ -176,7 +176,8 @@ a {
 .page-container {
   max-width: 1200px;
   margin: 0 auto;
-  padding: 2rem 1rem;
+  min-height: calc(100vh - 160px); /* Fill space between navbar and footer */
+  padding: 1rem 1rem 3rem 1rem;
   animation: fadeIn 0.5s ease-out;
 }
 

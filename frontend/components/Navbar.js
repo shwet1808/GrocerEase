@@ -54,22 +54,22 @@ export default function Navbar() {
         .glass-nav {
           position: sticky;
           top: 0;
-          z-index: 100;
-          background: rgba(255, 255, 255, 0.8);
+          z-index: 999;
+          background: var(--color-glass);
           backdrop-filter: blur(16px);
           -webkit-backdrop-filter: blur(16px);
-          border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+          border-bottom: 1px solid var(--color-glass-border);
           display: flex;
           justify-content: space-between;
           align-items: center;
           padding: 1rem 2rem;
-          box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02);
+          box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
         }
         
         .nav-brand h2 {
-          font-weight: 700;
+          font-weight: 800;
           font-size: 1.5rem;
-          color: var(--color-dark);
+          color: var(--color-text-main);
           letter-spacing: -0.5px;
         }
 
@@ -85,7 +85,7 @@ export default function Navbar() {
 
         .nav-item {
           font-weight: 500;
-          color: #475569;
+          color: var(--color-text-main);
           transition: color 0.2s;
         }
 
