@@ -1,4 +1,6 @@
 import { AuthProvider } from '../context/AuthContext';
+import { ThemeProvider } from '../context/ThemeContext';
+import Footer from '../components/Footer';
 import Navbar from '../components/Navbar';
 import './globals.css';
 
@@ -14,10 +16,13 @@ export default function RootLayout({ children }) {
         {/* We instantly wrap the entire React App in our AuthProvider. 
             Now, every single file has instantaneous access to whether we are an Admin or a Customer! */}
         <AuthProvider>
-          <Navbar />
-          <main className="page-container">
-            {children}
-          </main>
+          <ThemeProvider>
+            <Navbar />
+            <main className="page-container">
+              {children}
+            </main>
+            <Footer />
+          </ThemeProvider>
         </AuthProvider>
       </body>
     </html>

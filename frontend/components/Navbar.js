@@ -2,6 +2,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { useAuth } from '../context/AuthContext';
+import ThemeToggle from './ThemeToggle';
 
 export default function Navbar() {
   const { user, logout } = useAuth(); // Instantly grab their status from memory
@@ -15,8 +16,15 @@ export default function Navbar() {
       </div>
 
       <div className="nav-links">
-        <Link href="/" className="nav-item">Store</Link>
+        <Link href="/" className="nav-item">Home</Link>
+        <Link href="/about" className="nav-item">About</Link>
+        <Link href="/contact" className="nav-item">Contact</Link>
         
+        {/* Conditional Logic: Show Store Catalog only if logged in */}
+        {user && (
+          <Link href="/store" className="nav-item">Catalog</Link>
+        )}
+
         {/* Conditional Logic: ONLY show if they are logged in and happen to be an Admin */}
         {user?.role === 'admin' && (
           <Link href="/admin/dashboard" className="nav-item admin-badge">
@@ -24,15 +32,22 @@ export default function Navbar() {
           </Link>
         )}
 
-        {/* Show 'Login' if no user, else show 'My Orders' and 'Logout' */}
+        {/* Show 'Login' / 'Signup' if no user, else show 'My Orders' and 'Logout' */}
         {!user ? (
-          <Link href="/login" className="btn-primary">Sign In</Link>
+          <>
+            <Link href="/login" className="btn-secondary" style={{ marginRight: '1rem', marginLeft: '1rem' }}>Sign In</Link>
+            <Link href="/signup" className="btn-primary">Sign Up</Link>
+          </>
         ) : (
           <>
-            <span className="user-greeting">Welcome, {user.name.split(' ')[0]}</span>
+            {user.role === 'customer' && (
+              <Link href="/orders" className="nav-item">My Orders</Link>
+            )}
+            <span className="user-greeting" style={{ marginLeft: '1rem' }}>Welcome, {user.name.split(' ')[0]}</span>
             <button onClick={logout} className="btn-secondary">Logout</button>
           </>
         )}
+        <ThemeToggle />
       </div>
 
       <style jsx>{`

@@ -195,6 +195,21 @@ const fetchOrdersByUser = async (userId) => {
     'SELECT * FROM orders WHERE user_id = ? ORDER BY created_at DESC',
     [userId]
   );
+  
+  if (orders.length === 0) return orders;
+
+  const orderIds = orders.map(o => o.id);
+  // Fetch detailed items for all these orders
+  const [items] = await db.query(
+    'SELECT oi.*, p.name FROM order_items oi JOIN products p ON oi.product_id = p.id WHERE oi.order_id IN (?)',
+    [orderIds]
+  );
+
+  // Group items by order
+  orders.forEach(order => {
+    order.items = items.filter(i => i.order_id === order.id);
+  });
+
   return orders;
 };
 

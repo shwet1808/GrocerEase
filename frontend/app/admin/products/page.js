@@ -128,7 +128,7 @@ export default function AdminProducts() {
               <tr key={product.id}>
                 <td>#{product.id}</td>
                 <td className="product-name">{product.name}</td>
-                <td className="product-price">${Number(product.price).toFixed(2)}</td>
+                <td className="product-price">₹{Number(product.price).toFixed(2)}</td>
                 <td>{product.stock_quantity} units</td>
                 <td className="action-buttons">
                   <button onClick={() => handleOpenEditModal(product)} className="btn-edit">Edit</button>
@@ -157,7 +157,7 @@ export default function AdminProducts() {
               </div>
               <div className="form-row">
                 <div className="form-group">
-                  <label className="form-label">Price ($)</label>
+                  <label className="form-label">Price (₹)</label>
                   <input required type="number" step="0.01" className="input-field" value={formData.price} onChange={e => setFormData({...formData, price: e.target.value})} />
                 </div>
                 <div className="form-group">
